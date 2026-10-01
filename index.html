@@ -98,10 +98,6 @@ footer.dev b{color:var(--ink)}
 </div>
 </div>
 <script>
-// إعدادات اتصال Supabase
-const SUPABASE_URL = "https://vqrcyxkmpnfmhga.supabase.co";
-const SUPABASE_KEY = "sb_publishable_KFomcLZKBDK1q5MUc_jggg_EinUJEug";
-let sb = null;
 try {
   if(window.supabase) {
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
