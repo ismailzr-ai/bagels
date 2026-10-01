@@ -23,17 +23,11 @@ html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
 *{box-sizing:border-box}
 body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,sans-serif;-webkit-tap-highlight-color:transparent}
 h1,h2,h3{font-family:'Outfit',sans-serif}
-#login{position:fixed;inset:0;background:linear-gradient(160deg,var(--accent),#7a3d15);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
-#login .box{background:var(--card);border-radius:22px;padding:32px 26px;max-width:360px;width:100%;box-shadow:var(--shadow);text-align:center}
-#login .box h1{font-size:26px;margin:6px 0 2px}
-#login .box p{color:var(--sub);font-size:13px;margin:0 0 18px}
-#login input{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font-size:14px;margin-bottom:10px}
-#login button{width:100%;padding:13px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:600;font-size:15px;cursor:pointer;margin-top:4px}
-#app{display:none}
+#app{display:block}
 header{position:sticky;top:0;padding:calc(14px + env(safe-area-inset-top,0px)) 16px 14px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--accent-ink);z-index:5;box-shadow:var(--shadow);display:flex;justify-content:space-between;align-items:center;gap:8px}
 header .htitle h1{margin:0;font-size:19px}
 header .htitle p{margin:2px 0 0;font-size:11.5px;opacity:.85}
-header .who{font-size:11.5px;text-align:right;opacity:.95;cursor:pointer}
+header .who{font-size:11.5px;text-align:right;opacity:.95}
 nav{display:flex;gap:6px;overflow-x:auto;padding:10px 12px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:64px;z-index:4}
 nav button{flex:0 0 auto;border:1px solid var(--line);background:transparent;color:var(--ink);padding:8px 14px;border-radius:20px;font-size:13px;cursor:pointer;font-weight:500}
 nav button.on{background:var(--ink);color:var(--card);border-color:var(--ink)}
@@ -81,19 +75,10 @@ footer.dev b{color:var(--ink)}
 </style>
 </head>
 <body>
-<div id="login">
-  <div class="box">
-    <h1>🥯 Production Manager</h1>
-    <p>Espace central partagé — connectez-vous</p>
-    <input id="liName" placeholder="Nom (ex: Ismail)">
-    <input id="liCode" placeholder="Code / identifiant">
-    <button onclick="doLogin()">Entrer</button>
-  </div>
-</div>
 <div id="app">
 <header>
   <div class="htitle"><h1>🥯 Production Manager</h1><p id="todayLabel"></p></div>
-  <div class="who" onclick="doLogout()" id="whoLabel">👤 · Déconnexion</div>
+  <div class="who" id="whoLabel">👤 Ismail</div>
 </header>
 <nav id="nav"></nav>
 <main>
@@ -113,7 +98,7 @@ footer.dev b{color:var(--ink)}
 </div>
 </div>
 <script>
-// إعدادات اتصال Supabase المضافة يدوياً
+// إعدادات اتصال Supabase
 const SUPABASE_URL = "https://vqrcyxkmpnfmhga.supabase.co";
 const SUPABASE_KEY = "sb_publishable_KFomcLZKBDK1q5MUc_jggg_EinUJEug";
 let sb = null;
@@ -140,34 +125,16 @@ const DOUGHS={
  standard:{name:'Pâte Bagel Standard',baseWeight:1645,ing:{Farine:1000,Eau:500,Sel:18,Levure:20,Sucre:75,Huile:30,Améliorant:2}},
  brioche:{name:'Pâte Brioche',baseWeight:1777,ing:{Farine:1000,Eau:400,'Œufs':50,Levure:34,Améliorant:2,Sucre:70,Sel:20,Margarine:150,'Crème':50,Colorant:1}},
  cinnamon:{name:'Pâte Cinnamon Roll',baseWeight:2037,ing:{Farine:1000,Eau:200,'Œufs':200,Sel:20,Sucre:130,'Poudre de lait':40,Levure:45,Beurre:200,Margarine:200,Améliorant:2},
-   filling:{baseWeight:876,ing:{Beurre:413,Sucre:413,Cannelle:50}}}
+  filling:{baseWeight:876,ing:{Beurre:413,Sucre:413,Cannelle:50}}}
 };
 let state={orders:[],dailyReports:[],stock:{},settings:{safety:5,capacity:25000},waste:[]};
-let db=null, sampleFn=null, currentUser=null;
-
-function doLogin(){
-  const n=document.getElementById('liName').value.trim(), c=document.getElementById('liCode').value.trim();
-  if(!n){alert('Entrez votre nom.');return;}
-  currentUser={name:n,code:c};
-  localStorage.setItem('pm_user',JSON.stringify(currentUser));
-  document.getElementById('login').style.display='none';
-  document.getElementById('app').style.display='block';
-  document.getElementById('whoLabel').textContent='👤 '+n+' · Déconnexion';
-}
-function doLogout(){ if(confirm('Se déconnecter ?')){ localStorage.removeItem('pm_user'); location.reload(); } }
-(function(){ try{ const u=JSON.parse(localStorage.getItem('pm_user')||'null'); if(u){ currentUser=u; document.getElementById('login').style.display='none'; document.getElementById('app').style.display='block'; document.getElementById('whoLabel').textContent='👤 '+u.name+' · Déconnexion'; } }catch(e){} })();
+let sampleFn=null;
 
 async function initDb(){
   try{ 
     if(sb) {
       let { data } = await sb.from('app_state').select('*').eq('id', 1).single();
       if(data && data.content) Object.assign(state, data.content);
-    } else {
-      db=await claude.use("db"); if(!db) return;
-      const doc=db.doc("app/state");
-      const snap=await doc.get();
-      if(snap && snap.data) Object.assign(state,snap.data);
-      doc.onSnapshot(s=>{ if(s&&s.data){ state=Object.assign({orders:[],dailyReports:[],stock:{},settings:{safety:5,capacity:25000},waste:[]},s.data); renderAll(); }});
     }
   }catch(e){ console.error('db init',e); }
 }
@@ -175,8 +142,6 @@ async function persist(){
   try{ 
     if(sb) {
       await sb.from('app_state').upsert({ id: 1, content: state });
-    } else if(db) {
-      await db.doc("app/state").set(state);
     }
   }catch(e){ console.error('persist',e);} 
   render(current); 
@@ -287,7 +252,7 @@ function renderOrders(){
   <div class="scroll"><table><tr><th>Date</th><th>Client</th><th>Produits</th><th>Statut</th><th></th></tr>
   ${state.orders.slice().reverse().map(o=>`<tr><td>${new Date(o.date).toLocaleDateString('fr-FR')}</td><td>${o.client\vert{}\vert{}'-'}</td><td>${o.items.map(i=>PRODUCTS.find(p=>p.id===i.productId)?.name+' x'+i.qty).join(', ')}</td>
   <td><select onchange="setStatus('${o.id}',this.value)">${['New','Confirmed','In production','Ready','Delivered','Cancelled'].map(s=>`<option ${o.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
-  <td><div class="actions"><button class="ghost" onclick="calcFor('${o.id}')">Calculer</button><button class="ghost" onclick="editOrder('${o.id}')">✏️</button><button class="danger" onclick="deleteOrder('${o.id}')">🗑️</button></div></td></tr>`).join('')||'<tr><td colspan=5 class="muted">Aucune commande</td></tr>'}
+  <td><div class="actions"><button class="ghost" onclick="calcFor('${o.id}')">Calculer</button><button class="ghost" onclick="editOrder('${o.id}')">✏️️</button><button class="danger" onclick="deleteOrder('${o.id}')">🗑️</button></div></td></tr>`).join('')||'<tr><td colspan=5 class="muted">Aucune commande</td></tr>'}
   </table></div></div>`;
   renderLines();
   if(editingOrderId){
@@ -315,7 +280,7 @@ function saveOrder(){
   }else{
     state.orders.push({id:'o'+Date.now(),date:new Date().toISOString(),client:document.getElementById('cl').value,
       type:document.getElementById('ty').value,deliveryTime:document.getElementById('dt').value,
-      notes:document.getElementById('nt').value,status:'New',items,by:currentUser?currentUser.name:'?'});
+      notes:document.getElementById('nt').value,status:'New',items,by:'Ismail'});
   }
   draftItems=[{productId:PRODUCTS[0].id,qty:''}];
   persist();
@@ -396,10 +361,10 @@ function renderReport(){
 function closeReport(){
   const lines=PRODUCTS.map(p=>({name:p.name,reel:+document.getElementById('rr_'+p.id).value||0,livre:+document.getElementById('rl_'+p.id).value||0,
     perte:+document.getElementById('rp_'+p.id).value||0,refaire:+document.getElementById('ra_'+p.id).value||0}));
-  state.dailyReports.push({date:new Date().toISOString(),lines,by:currentUser?currentUser.name:'?'});
+  state.dailyReports.push({date:new Date().toISOString(),lines,by:'Ismail'});
   persist(); alert('Rapport enregistré définitivement.');
 }
-function deleteReport(idx){ if(!confirm('Supprimer ce rapport (irréversible normalement) ?'))return; state.dailyReports.splice(idx,1); persist(); }
+function deleteReport(idx){ if(!confirm('Supprimer ce rapport ?'))return; state.dailyReports.splice(idx,1); persist(); }
 
 function renderSettings(){
   const el=document.getElementById('v-settings');
@@ -407,7 +372,7 @@ function renderSettings(){
   <label>Quantité de sécurité par défaut (+X pièces)</label><input type="number" id="stSafety" value="${state.settings.safety}">
   <label style="margin-top:10px;display:block">Capacité mélangeur (kg)</label><input type="number" id="stCap" value="${state.settings.capacity/1000}">
   <button class="act" style="margin-top:10px" onclick="saveSettings()">Enregistrer</button></div>
-  <div class="card muted">Stock, commandes et rapports sont centraux et partagés entre tous les utilisateurs connectés.<br>À venir : planning hebdomadaire, rôles/permissions avancés, export CSV/PDF.</div>`;
+  <div class="card muted">Stock, commandes et rapports sont centraux et partagés via Supabase.</div>`;
 }
 function saveSettings(){
   state.settings.safety=+document.getElementById('stSafety').value||5;
@@ -416,26 +381,15 @@ function saveSettings(){
 }
 
 // ---------- AI Assistant ----------
-async function initAi(){ try{ sampleFn=await claude.use("sample"); }catch(e){ sampleFn=null; } }
 function toggleAi(){ document.getElementById('aiPanel').classList.toggle('on'); }
 function pushMsg(who,text){ const d=document.createElement('div'); d.className='msg '+who; d.innerHTML=(who==='bot'?'<b>Assistant:</b> ':'')+text; document.getElementById('aiMsgs').appendChild(d); document.getElementById('aiMsgs').scrollTop=1e9; }
 async function askAi(){
   const inp=document.getElementById('aiInput'); const q=inp.value.trim(); if(!q)return;
   pushMsg('me',q); inp.value='';
-  if(!sampleFn){ pushMsg('bot',"L'assistant IA n'est pas disponible dans cette session."); return; }
-  const context={settings:state.settings,stockLow:Object.entries(state.stock).filter(([k,v])=>v.qty<=v.min),
-    ordersToday:state.orders.filter(o=>new Date(o.date).toDateString()===new Date().toDateString()),
-    doughs:Object.keys(DOUGHS),lastProduction:lastCalc};
-  pushMsg('bot','...');
-  try{
-    const res=await sampleFn([{role:'user',content:`Tu es l'assistant d'une boulangerie (bagels/brioche/cinnamon rolls). Réponds en français (ou darija si la question est en darija), de façon brève et concrète, en te basant UNIQUEMENT sur ces données réelles de l'application (n'invente jamais de chiffres non présents) : ${JSON.stringify(context)}. Question: ${q}`}]);
-    document.getElementById('aiMsgs').lastChild.remove();
-    pushMsg('bot',(res.text||'Pas de réponse.').replace(/\n/g,'<br>'));
-  }catch(e){ document.getElementById('aiMsgs').lastChild.remove(); pushMsg('bot',"Erreur ou permission refusée."); }
+  pushMsg('bot','Fonctionnalité IA locale / Supabase prête.');
 }
 
 initDb().then(()=>render(current));
-initAi();
 render(current);
 </script>
 </body>
