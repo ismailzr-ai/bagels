@@ -24,9 +24,17 @@ html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
 *{box-sizing:border-box}
 body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,sans-serif;-webkit-tap-highlight-color:transparent}
 h1,h2,h3{font-family:'Outfit',sans-serif}
+#login{position:fixed;inset:0;background:linear-gradient(160deg,var(--accent),#7a3d15);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
+#login .box{background:var(--card);border-radius:22px;padding:32px 26px;max-width:360px;width:100%;box-shadow:var(--shadow);text-align:center}
+#login .box h1{font-size:26px;margin:6px 0 2px}
+#login .box p{color:var(--sub);font-size:13px;margin:0 0 18px}
+#login input{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font-size:14px;margin-bottom:10px}
+#login button{width:100%;padding:13px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:600;font-size:15px;cursor:pointer;margin-top:4px}
+#app{display:none}
 header{position:sticky;top:0;padding:calc(14px + env(safe-area-inset-top,0px)) 16px 14px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--accent-ink);z-index:5;box-shadow:var(--shadow);display:flex;justify-content:space-between;align-items:center;gap:8px}
 header .htitle h1{margin:0;font-size:19px}
 header .htitle p{margin:2px 0 0;font-size:11.5px;opacity:.85}
+header .who{font-size:11.5px;text-align:right;opacity:.95;cursor:pointer}
 nav{display:flex;gap:6px;overflow-x:auto;padding:10px 12px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:64px;z-index:4}
 nav button{flex:0 0 auto;border:1px solid var(--line);background:transparent;color:var(--ink);padding:8px 14px;border-radius:20px;font-size:13px;cursor:pointer;font-weight:500}
 nav button.on{background:var(--ink);color:var(--card);border-color:var(--ink)}
@@ -63,9 +71,19 @@ footer.dev b{color:var(--ink)}
 </style>
 </head>
 <body>
+<div id="login">
+  <div class="box">
+    <h1>🥯 Production Manager</h1>
+    <p>Espace central partagé — connectez-vous</p>
+    <input id="liName" placeholder="Nom (ex: Ismail)">
+    <input id="liCode" placeholder="Code / identifiant">
+    <button onclick="doLogin()">Entrer</button>
+  </div>
+</div>
+<div id="app">
 <header>
   <div class="htitle"><h1>🥯 Production Manager</h1><p id="todayLabel"></p></div>
-  <div style="font-size:12px;font-weight:600;">Ismail Zarouali</div>
+  <div class="who" onclick="doLogout()" id="whoLabel">👤 · Déconnexion</div>
 </header>
 <nav id="nav"></nav>
 <main>
@@ -77,9 +95,11 @@ footer.dev b{color:var(--ink)}
   <div class="view" id="v-settings"></div>
   <footer class="dev">Développé par <b>Ismail Zarouali</b></footer>
 </main>
+</div>
 <script>
 const SUPABASE_URL = "https://vqrcyxkmpnfmhga.supabase.co";
-const SUPABASE_KEY = "sb_publishable_KFOmcLZKBDK1q5mUC_jggg_EiNUJEug";
+const SUPABASE_KEY = "sb_publishable_KFomcLZKBDK1q5MUc_jggg_EinUJEug"; // مفتاحك السحابي
+
 let sb = null;
 try {
   if (window.supabase) {
@@ -107,19 +127,32 @@ const DOUGHS={
     filling:{baseWeight:876,ing:{Beurre:413,Sucre:413,Cannelle:50}}}
 };
 let state={orders:[],dailyReports:[],stock:{},settings:{safety:5,capacity:25000},waste:[]};
+let currentUser=null;
 
-async function loadDb() {
+function doLogin(){
+  const n=document.getElementById('liName').value.trim(), c=document.getElementById('liCode').value.trim();
+  if(!n){alert('Entrez votre nom.');return;}
+  currentUser={name:n,code:c};
+  localStorage.setItem('pm_user',JSON.stringify(currentUser));
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('whoLabel').textContent='👤 '+n+' · Déconnexion';
+}
+function doLogout(){ if(confirm('Se déconnecter ?')){ localStorage.removeItem('pm_user'); location.reload(); } }
+(function(){ try{ const u=JSON.parse(localStorage.getItem('pm_user')||'null'); if(u){ currentUser=u; document.getElementById('login').style.display='none'; document.getElementById('app').style.display='block'; document.getElementById('whoLabel').textContent='👤 '+u.name+' · Déconnexion'; } }catch(e){} })();
+
+async function initDb(){
   try {
     if(sb) {
       const { data, error } = await sb.from('app_state').select('*').eq('id', 'main').single();
       if(data && data.data) {
-        state = data.data;
+        state = Object.assign({orders:[],dailyReports:[],stock:{},settings:{safety:5,capacity:25000},waste:[]}, data.data);
       }
     }
   } catch(e) {
-    console.log("No remote data, using defaults.");
+    console.log("No remote data or table missing, using defaults.");
   }
-  initApp();
+  renderAll();
 }
 
 async function persist(){
@@ -174,28 +207,18 @@ function computeProduction(items){
 const TABS=[['dashboard','Dashboard'],['orders','Commandes'],['production','Production'],['stock','Stock'],['report','Rapport'],['settings','Réglages']];
 let current='dashboard';
 function switchTo(t){current=t;render(t);}
-
-function initApp(){
-  const navEl = document.getElementById('nav');
-  if(navEl){
-    navEl.innerHTML=TABS.map(([id,label])=>`<button data-t="${id}">${label}</button>`).join('');
-    navEl.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;switchTo(b.dataset.t);});
-  }
-  const dateEl = document.getElementById('todayLabel');
-  if(dateEl){
-    dateEl.textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  }
-  render(current);
-}
+document.getElementById('nav').innerHTML=TABS.map(([id,label])=>`<button data-t="${id}">${label}</button>`).join('');
+document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;switchTo(b.dataset.t);});
+document.getElementById('todayLabel').textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 
 function render(t){
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
   const target = document.getElementById('v-'+t);
   if(target) target.classList.add('on');
-  const fns={dashboard:renderDash,orders:renderOrders,production:renderProduction,stock:renderStock,report:renderReport,settings:renderSettings};
-  if(fns[t]) fns[t]();
+  ({dashboard:renderDash,orders:renderOrders,production:renderProduction,stock:renderStock,report:renderReport,settings:renderSettings})[t]();
 }
+function renderAll(){render(current);}
 
 function renderDash(){
   const today=new Date().toDateString();
@@ -211,7 +234,7 @@ function renderDash(){
     <div class="card stat"><b>${state.dailyReports.length}</b><span>Rapports enregistrés</span></div>
     <div class="card stat"><b style="color:${lowStock.length?'var(--bad)':'var(--ok)'}">${lowStock.length}</b><span>Alertes stock</span></div>
   </div>
-  ${lowStock.length?`<div class="card"><h3>⚠️ Alertes stock</h3>${lowStock.map(([k,v])=>`<div>${k} — ${v.qty}${v.unit} <span class="badge b-bad">Bas</span></div>`).join('')}</div>`:''}
+  ${lowStock.length?`<div class="card"><h3>⚠️ Alertes stock (khass tchri)</h3>${lowStock.map(([k,v])=>`<div>${k} — ${v.qty}${v.unit} <span class="badge b-bad">Bas</span></div>`).join('')}</div>`:''}
   <div class="card"><h3>Actions rapides</h3>
     <div class="qa">
       <button class="act" onclick="switchTo('orders')">Nouvelle commande</button>
@@ -260,9 +283,9 @@ function renderOrders(){
   }
 }
 function renderLines(){
-  const container=document.getElementById('lines');
-  if(!container)return;
-  container.innerHTML=draftItems.map((it,i)=>`
+  const linesEl=document.getElementById('lines');
+  if(!linesEl)return;
+  linesEl.innerHTML=draftItems.map((it,i)=>`
     <div class="orderline">
       <select onchange="draftItems[${i}].productId=this.value">${PRODUCTS.map(p=>`<option value="${p.id}" ${p.id===it.productId?'selected':''}>${p.name}</option>`).join('')}</select>
       <input type="number" min="0" placeholder="Qté" value="${it.qty}" oninput="draftItems[${i}].qty=this.value">
@@ -281,7 +304,7 @@ function saveOrder(){
   }else{
     state.orders.push({id:'o'+Date.now(),date:new Date().toISOString(),client:document.getElementById('cl').value,
       type:document.getElementById('ty').value,deliveryTime:document.getElementById('dt').value,
-      notes:document.getElementById('nt').value,status:'New',items});
+      notes:document.getElementById('nt').value,status:'New',items,by:currentUser?currentUser.name:'?'});
   }
   draftItems=[{productId:PRODUCTS[0].id,qty:''}];
   persist();
@@ -365,7 +388,7 @@ function renderReport(){
 function closeReport(){
   const lines=PRODUCTS.map(p=>({name:p.name,reel:+document.getElementById('rr_'+p.id).value||0,livre:+document.getElementById('rl_'+p.id).value||0,
     perte:+document.getElementById('rp_'+p.id).value||0,refaire:+document.getElementById('ra_'+p.id).value||0}));
-  state.dailyReports.push({date:new Date().toISOString(),lines});
+  state.dailyReports.push({date:new Date().toISOString(),lines,by:currentUser?currentUser.name:'?'});
   persist(); alert('Rapport enregistré définitivement.');
 }
 function deleteReport(idx){ if(!confirm('Supprimer ce rapport ?'))return; state.dailyReports.splice(idx,1); persist(); }
@@ -377,7 +400,7 @@ function renderSettings(){
   <label>Quantité de sécurité par défaut (+X pièces)</label><input type="number" id="stSafety" value="${state.settings.safety}">
   <label style="margin-top:10px;display:block">Capacité mélangeur (kg)</label><input type="number" id="stCap" value="${state.settings.capacity/1000}">
   <button class="act" style="margin-top:10px" onclick="saveSettings()">Enregistrer</button></div>
-  <div class="card muted">Développé par <b>Ismail Zarouali</b>.</div>`;
+  <div class="card muted">Stock, commandes et rapports sont centraux et partagés entre tous les utilisateurs connectés.</div>`;
 }
 function saveSettings(){
   state.settings.safety=+document.getElementById('stSafety').value||5;
@@ -385,8 +408,8 @@ function saveSettings(){
   persist();
 }
 
-// البدء الشامل
-loadDb();
+// بدء التشغيل
+initDb();
 </script>
 </body>
 </html>
