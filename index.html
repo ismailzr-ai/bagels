@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<!-- مكتبة Supabase للربط السحابي -->
+<!-- مكتبة Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
@@ -78,13 +78,13 @@ footer.dev b{color:var(--ink)}
   <footer class="dev">Développé par <b>Ismail Zarouali</b></footer>
 </main>
 <script>
-// --- إعدادات اتصال Supabase السحابي ---
 const SUPABASE_URL = "https://vqrcyxkmpnfmhga.supabase.co";
 const SUPABASE_KEY = "sb_publishable_KFOmcLZKBDK1q5mUC_jggg_EiNUJEug";
-
 let sb = null;
 try {
-  sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  if (window.supabase) {
+    sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  }
 } catch(e) {
   console.error("Supabase init error:", e);
 }
@@ -110,15 +110,16 @@ let state={orders:[],dailyReports:[],stock:{},settings:{safety:5,capacity:25000}
 
 async function loadDb() {
   try {
-    if(!sb) return;
-    const { data } = await sb.from('app_state').select('*').eq('id', 'main').single();
-    if(data && data.data) {
-      state = data.data;
-      render(current);
+    if(sb) {
+      const { data, error } = await sb.from('app_state').select('*').eq('id', 'main').single();
+      if(data && data.data) {
+        state = data.data;
+      }
     }
   } catch(e) {
-    console.error("Load DB error:", e);
+    console.log("No remote data, using defaults.");
   }
+  initApp();
 }
 
 async function persist(){
@@ -174,14 +175,17 @@ const TABS=[['dashboard','Dashboard'],['orders','Commandes'],['production','Prod
 let current='dashboard';
 function switchTo(t){current=t;render(t);}
 
-const navEl = document.getElementById('nav');
-if(navEl){
-  navEl.innerHTML=TABS.map(([id,label])=>`<button data-t="${id}">${label}</button>`).join('');
-  navEl.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;switchTo(b.dataset.t);});
-}
-const dateEl = document.getElementById('todayLabel');
-if(dateEl){
-  dateEl.textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+function initApp(){
+  const navEl = document.getElementById('nav');
+  if(navEl){
+    navEl.innerHTML=TABS.map(([id,label])=>`<button data-t="${id}">${label}</button>`).join('');
+    navEl.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;switchTo(b.dataset.t);});
+  }
+  const dateEl = document.getElementById('todayLabel');
+  if(dateEl){
+    dateEl.textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  }
+  render(current);
 }
 
 function render(t){
@@ -381,9 +385,8 @@ function saveSettings(){
   persist();
 }
 
-// تحميل البيانات وتشغيل الواجهة
+// البدء الشامل
 loadDb();
-render(current);
 </script>
 </body>
 </html>
