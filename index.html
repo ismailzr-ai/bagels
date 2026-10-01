@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- مكتبة Supabase للربط السحابي -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --bg:#f7f1e8; --card:#ffffff; --ink:#2a1d13; --sub:#8a7563; --line:#ecdfce;
@@ -22,17 +24,9 @@ html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
 *{box-sizing:border-box}
 body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,sans-serif;-webkit-tap-highlight-color:transparent}
 h1,h2,h3{font-family:'Outfit',sans-serif}
-#login{position:fixed;inset:0;background:linear-gradient(160deg,var(--accent),#7a3d15);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
-#login .box{background:var(--card);border-radius:22px;padding:32px 26px;max-width:360px;width:100%;box-shadow:var(--shadow);text-align:center}
-#login .box h1{font-size:26px;margin:6px 0 2px}
-#login .box p{color:var(--sub);font-size:13px;margin:0 0 18px}
-#login input{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font-size:14px;margin-bottom:10px}
-#login button{width:100%;padding:13px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:600;font-size:15px;cursor:pointer;margin-top:4px}
-#app{display:none}
 header{position:sticky;top:0;padding:calc(14px + env(safe-area-inset-top,0px)) 16px 14px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--accent-ink);z-index:5;box-shadow:var(--shadow);display:flex;justify-content:space-between;align-items:center;gap:8px}
 header .htitle h1{margin:0;font-size:19px}
 header .htitle p{margin:2px 0 0;font-size:11.5px;opacity:.85}
-header .who{font-size:11.5px;text-align:right;opacity:.95;cursor:pointer}
 nav{display:flex;gap:6px;overflow-x:auto;padding:10px 12px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:64px;z-index:4}
 nav button{flex:0 0 auto;border:1px solid var(--line);background:transparent;color:var(--ink);padding:8px 14px;border-radius:20px;font-size:13px;cursor:pointer;font-weight:500}
 nav button.on{background:var(--ink);color:var(--card);border-color:var(--ink)}
@@ -66,33 +60,12 @@ h3{margin:0 0 10px;font-size:15.5px}
 .actions{display:flex;gap:6px;flex-wrap:wrap}
 footer.dev{text-align:center;padding:20px 12px 10px;color:var(--sub);font-size:12px}
 footer.dev b{color:var(--ink)}
-#aiBtn{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#fff;font-size:24px;box-shadow:var(--shadow);cursor:pointer;z-index:20}
-#aiPanel{position:fixed;right:14px;bottom:calc(80px + env(safe-area-inset-bottom,0px));width:min(340px,calc(100vw - 28px));max-height:60vh;background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);display:none;flex-direction:column;z-index:20;overflow:hidden}
-#aiPanel.on{display:flex}
-#aiHead{padding:12px 14px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:600;font-size:14px}
-#aiMsgs{flex:1;overflow-y:auto;padding:10px 12px;font-size:13px}
-.msg{margin-bottom:10px;line-height:1.4}
-.msg.me{text-align:right;color:var(--sub)}
-.msg.bot b{color:var(--accent)}
-#aiInputRow{display:flex;gap:6px;padding:10px;border-top:1px solid var(--line)}
-#aiInputRow input{flex:1;margin:0}
-#aiInputRow button{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:0 14px;font-size:14px;cursor:pointer}
 </style>
 </head>
 <body>
-<div id="login">
-  <div class="box">
-    <h1>🥯 Production Manager</h1>
-    <p>Espace central partagé — connectez-vous</p>
-    <input id="liName" placeholder="Nom (ex: Ismail)">
-    <input id="liCode" placeholder="Code / identifiant">
-    <button onclick="doLogin()">Entrer</button>
-  </div>
-</div>
-<div id="app">
 <header>
   <div class="htitle"><h1>🥯 Production Manager</h1><p id="todayLabel"></p></div>
-  <div class="who" onclick="doLogout()" id="whoLabel">👤 · Déconnexion</div>
+  <div style="font-size:12px;font-weight:600;">Ismail Zarouali</div>
 </header>
 <nav id="nav"></nav>
 <main>
@@ -104,14 +77,18 @@ footer.dev b{color:var(--ink)}
   <div class="view" id="v-settings"></div>
   <footer class="dev">Développé par <b>Ismail Zarouali</b></footer>
 </main>
-<button id="aiBtn" onclick="toggleAi()">✨</button>
-<div id="aiPanel">
-  <div id="aiHead">🤖 Assistant Production</div>
-  <div id="aiMsgs"></div>
-  <div id="aiInputRow"><input id="aiInput" placeholder="Posez une question... / سولني" onkeydown="if(event.key==='Enter')askAi()"><button onclick="askAi()">➤</button></div>
-</div>
-</div>
 <script>
+// --- إعدادات اتصال Supabase السحابي ---
+const SUPABASE_URL = "https://vqrcyxkmpnfmhga.supabase.co";
+const SUPABASE_KEY = "sb_publishable_KFOmcLZKBDK1q5mUC_jggg_EiNUJEug";
+
+let sb = null;
+try {
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e) {
+  console.error("Supabase init error:", e);
+}
+
 const PRODUCTS=[
  {id:'nature',name:'Bagel Nature',weight:120,dough:'standard'},
  {id:'cumin',name:'Bagel Cumin',weight:120,dough:'standard'},
@@ -127,32 +104,33 @@ const DOUGHS={
  standard:{name:'Pâte Bagel Standard',baseWeight:1645,ing:{Farine:1000,Eau:500,Sel:18,Levure:20,Sucre:75,Huile:30,Améliorant:2}},
  brioche:{name:'Pâte Brioche',baseWeight:1777,ing:{Farine:1000,Eau:400,'Œufs':50,Levure:34,Améliorant:2,Sucre:70,Sel:20,Margarine:150,'Crème':50,Colorant:1}},
  cinnamon:{name:'Pâte Cinnamon Roll',baseWeight:2037,ing:{Farine:1000,Eau:200,'Œufs':200,Sel:20,Sucre:130,'Poudre de lait':40,Levure:45,Beurre:200,Margarine:200,Améliorant:2},
-   filling:{baseWeight:876,ing:{Beurre:413,Sucre:413,Cannelle:50}}}
+    filling:{baseWeight:876,ing:{Beurre:413,Sucre:413,Cannelle:50}}}
 };
 let state={orders:[],dailyReports:[],stock:{},settings:{safety:5,capacity:25000},waste:[]};
-let db=null, sampleFn=null, currentUser=null;
 
-function doLogin(){
-  const n=document.getElementById('liName').value.trim(), c=document.getElementById('liCode').value.trim();
-  if(!n){alert('Entrez votre nom.');return;}
-  currentUser={name:n,code:c};
-  localStorage.setItem('pm_user',JSON.stringify(currentUser));
-  document.getElementById('login').style.display='none';
-  document.getElementById('app').style.display='block';
-  document.getElementById('whoLabel').textContent='👤 '+n+' · Déconnexion';
+async function loadDb() {
+  try {
+    if(!sb) return;
+    const { data } = await sb.from('app_state').select('*').eq('id', 'main').single();
+    if(data && data.data) {
+      state = data.data;
+      render(current);
+    }
+  } catch(e) {
+    console.error("Load DB error:", e);
+  }
 }
-function doLogout(){ if(confirm('Se déconnecter ?')){ localStorage.removeItem('pm_user'); location.reload(); } }
-(function(){ try{ const u=JSON.parse(localStorage.getItem('pm_user')||'null'); if(u){ currentUser=u; document.getElementById('login').style.display='none'; document.getElementById('app').style.display='block'; document.getElementById('whoLabel').textContent='👤 '+u.name+' · Déconnexion'; } }catch(e){} })();
 
-async function initDb(){
-  try{ db=await claude.use("db"); if(!db) return;
-    const doc=db.doc("app/state");
-    const snap=await doc.get();
-    if(snap && snap.data) Object.assign(state,snap.data);
-    doc.onSnapshot(s=>{ if(s&&s.data){ state=Object.assign({orders:[],dailyReports:[],stock:{},settings:{safety:5,capacity:25000},waste:[]},s.data); renderAll(); }});
-  }catch(e){ console.error('db init',e); }
+async function persist(){
+  try {
+    if(sb) {
+      await sb.from('app_state').upsert({ id: 'main', data: state, updated_at: new Date() });
+    }
+  } catch(e) {
+    console.error("Persist error:", e);
+  }
+  render(current);
 }
-async function persist(){ try{ if(db) await db.doc("app/state").set(state); }catch(e){ console.error('persist',e);} render(current); }
 
 function fmtKg(g){return (g/1000).toFixed(2)+' kg';}
 function prodQty(o){return o.qty+state.settings.safety;}
@@ -195,17 +173,25 @@ function computeProduction(items){
 const TABS=[['dashboard','Dashboard'],['orders','Commandes'],['production','Production'],['stock','Stock'],['report','Rapport'],['settings','Réglages']];
 let current='dashboard';
 function switchTo(t){current=t;render(t);}
-document.getElementById('nav').innerHTML=TABS.map(([id,label])=>`<button data-t="${id}">${label}</button>`).join('');
-document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;switchTo(b.dataset.t);});
-document.getElementById('todayLabel').textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+const navEl = document.getElementById('nav');
+if(navEl){
+  navEl.innerHTML=TABS.map(([id,label])=>`<button data-t="${id}">${label}</button>`).join('');
+  navEl.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;switchTo(b.dataset.t);});
+}
+const dateEl = document.getElementById('todayLabel');
+if(dateEl){
+  dateEl.textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+}
 
 function render(t){
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
-  document.getElementById('v-'+t).classList.add('on');
-  ({dashboard:renderDash,orders:renderOrders,production:renderProduction,stock:renderStock,report:renderReport,settings:renderSettings})[t]();
+  const target = document.getElementById('v-'+t);
+  if(target) target.classList.add('on');
+  const fns={dashboard:renderDash,orders:renderOrders,production:renderProduction,stock:renderStock,report:renderReport,settings:renderSettings};
+  if(fns[t]) fns[t]();
 }
-function renderAll(){render(current);}
 
 function renderDash(){
   const today=new Date().toDateString();
@@ -213,6 +199,7 @@ function renderDash(){
   const special=todays.filter(o=>o.type==='special');
   const lowStock=Object.entries(state.stock).filter(([k,v])=>v.qty<=v.min);
   const el=document.getElementById('v-dashboard');
+  if(!el)return;
   el.innerHTML=`
   <div class="grid">
     <div class="card stat"><b>${todays.length}</b><span>Commandes aujourd'hui</span></div>
@@ -220,7 +207,7 @@ function renderDash(){
     <div class="card stat"><b>${state.dailyReports.length}</b><span>Rapports enregistrés</span></div>
     <div class="card stat"><b style="color:${lowStock.length?'var(--bad)':'var(--ok)'}">${lowStock.length}</b><span>Alertes stock</span></div>
   </div>
-  ${lowStock.length?`<div class="card"><h3>⚠️ Alertes stock (khass tchri)</h3>${lowStock.map(([k,v])=>`<div>${k} — ${v.qty}${v.unit} <span class="badge b-bad">Bas</span></div>`).join('')}</div>`:''}
+  ${lowStock.length?`<div class="card"><h3>⚠️ Alertes stock</h3>${lowStock.map(([k,v])=>`<div>${k} — ${v.qty}${v.unit} <span class="badge b-bad">Bas</span></div>`).join('')}</div>`:''}
   <div class="card"><h3>Actions rapides</h3>
     <div class="qa">
       <button class="act" onclick="switchTo('orders')">Nouvelle commande</button>
@@ -231,7 +218,7 @@ function renderDash(){
   </div>
   <div class="card"><h3>Commandes du jour</h3>
     <div class="scroll"><table><tr><th>Client</th><th>Produits</th><th>Type</th><th>Statut</th></tr>
-    ${todays.map(o=>`<tr><td>${o.client||'-'}</td><td>${o.items.map(i=>PRODUCTS.find(p=>p.id===i.productId)?.name+' x'+i.qty).join(', ')}</td><td>${o.type}</td><td>${o.status}</td></tr>`).join('')||'<tr><td colspan=4 class="muted">Aucune commande</td></tr>'}
+    ${todays.map(o=>`<tr><td>${o.client\vert{}\vert{}'-'}</td><td>${o.items.map(i=>PRODUCTS.find(p=>p.id===i.productId)?.name+' x'+i.qty).join(', ')}</td><td>${o.type}</td><td>${o.status}</td></tr>`).join('')||'<tr><td colspan=4 class="muted">Aucune commande</td></tr>'}
     </table></div>
   </div>`;
 }
@@ -240,6 +227,7 @@ let draftItems=[{productId:PRODUCTS[0].id,qty:''}];
 let editingOrderId=null;
 function renderOrders(){
   const el=document.getElementById('v-orders');
+  if(!el)return;
   el.innerHTML=`
   <div class="card"><h3>${editingOrderId?'Modifier la commande':'Nouvelle commande'}</h3>
     <div class="row">
@@ -257,7 +245,7 @@ function renderOrders(){
   </div>
   <div class="card"><h3>Toutes les commandes</h3>
   <div class="scroll"><table><tr><th>Date</th><th>Client</th><th>Produits</th><th>Statut</th><th></th></tr>
-  ${state.orders.slice().reverse().map(o=>`<tr><td>${new Date(o.date).toLocaleDateString('fr-FR')}</td><td>${o.client||'-'}</td><td>${o.items.map(i=>PRODUCTS.find(p=>p.id===i.productId)?.name+' x'+i.qty).join(', ')}</td>
+  ${state.orders.slice().reverse().map(o=>`<tr><td>${new Date(o.date).toLocaleDateString('fr-FR')}</td><td>${o.client\vert{}\vert{}'-'}</td><td>${o.items.map(i=>PRODUCTS.find(p=>p.id===i.productId)?.name+' x'+i.qty).join(', ')}</td>
   <td><select onchange="setStatus('${o.id}',this.value)">${['New','Confirmed','In production','Ready','Delivered','Cancelled'].map(s=>`<option ${o.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
   <td><div class="actions"><button class="ghost" onclick="calcFor('${o.id}')">Calculer</button><button class="ghost" onclick="editOrder('${o.id}')">✏️</button><button class="danger" onclick="deleteOrder('${o.id}')">🗑️</button></div></td></tr>`).join('')||'<tr><td colspan=5 class="muted">Aucune commande</td></tr>'}
   </table></div></div>`;
@@ -268,7 +256,9 @@ function renderOrders(){
   }
 }
 function renderLines(){
-  document.getElementById('lines').innerHTML=draftItems.map((it,i)=>`
+  const container=document.getElementById('lines');
+  if(!container)return;
+  container.innerHTML=draftItems.map((it,i)=>`
     <div class="orderline">
       <select onchange="draftItems[${i}].productId=this.value">${PRODUCTS.map(p=>`<option value="${p.id}" ${p.id===it.productId?'selected':''}>${p.name}</option>`).join('')}</select>
       <input type="number" min="0" placeholder="Qté" value="${it.qty}" oninput="draftItems[${i}].qty=this.value">
@@ -287,7 +277,7 @@ function saveOrder(){
   }else{
     state.orders.push({id:'o'+Date.now(),date:new Date().toISOString(),client:document.getElementById('cl').value,
       type:document.getElementById('ty').value,deliveryTime:document.getElementById('dt').value,
-      notes:document.getElementById('nt').value,status:'New',items,by:currentUser?currentUser.name:'?'});
+      notes:document.getElementById('nt').value,status:'New',items});
   }
   draftItems=[{productId:PRODUCTS[0].id,qty:''}];
   persist();
@@ -301,6 +291,7 @@ function calcFor(id){const o=state.orders.find(x=>x.id===id);if(!o)return;lastCa
 
 function renderProduction(){
   const el=document.getElementById('v-production');
+  if(!el)return;
   if(!lastCalc){
     const today=new Date().toDateString();
     const items=state.orders.filter(o=>new Date(o.date).toDateString()===today && o.status!=='Cancelled').flatMap(o=>o.items);
@@ -310,7 +301,7 @@ function renderProduction(){
   <p class="muted">Groupé par pâte. Capacité mélangeur: ${fmtKg(state.settings.capacity)}. Cliquez "Calculer" sur une commande pour recalculer.</p></div>
   ${lastCalc.length?lastCalc.map(g=>`
     <div class="card">
-      <h3>${g.doughName} — total ${fmtKg(g.totalWeight)}</h3>
+      <h3>${g.doughName} — total${fmtKg(g.totalWeight)}</h3>
       <div class="scroll"><table><tr><th>Produit</th><th>Qté prod.</th><th>Poids/pce</th><th>Total</th></tr>
       ${g.items.map(i=>`<tr><td>${i.name}</td><td>${i.pq}</td><td>${i.weight}g</td><td>${fmtKg(i.total)}</td></tr>`).join('')}
       </table></div>
@@ -331,6 +322,7 @@ function confirmProduction(){
 
 function renderStock(){
   const el=document.getElementById('v-stock');
+  if(!el)return;
   const keys=Object.keys(state.stock);
   el.innerHTML=`<div class="card"><h3>Ajouter / ajuster un ingrédient</h3>
   <div class="row"><div><label>Nom</label><input id="sn"></div><div><label>Qté</label><input id="sq" type="number"></div>
@@ -341,7 +333,7 @@ function renderStock(){
     return `<tr><td>${k}</td><td>${v.qty} ${v.unit}</td><td>${v.min}</td><td><span class="badge ${status[1]}">${status[0]}</span></td><td><button class="danger" onclick="deleteStock('${k}')">🗑️</button></td></tr>`;}).join('')||'<tr><td colspan=5 class="muted">Aucun ingrédient</td></tr>'}
   </table></div></div>
   <div class="card"><h3>Liste d'achats (à commander)</h3>
-  ${keys.filter(k=>state.stock[k].qty<state.stock[k].min).map(k=>`<div>${k}: acheter ${(state.stock[k].min-state.stock[k].qty).toFixed(1)} ${state.stock[k].unit}</div>`).join('')||'<div class="muted">Rien à acheter.</div>'}</div>`;
+  ${keys.filter(k=>state.stock[k].qty<state.stock[k].min).map(k=>`<div>${k}: acheter ${(state.stock[k].min-state.stock[k].qty).toFixed(1)}${state.stock[k].unit}</div>`).join('')||'<div class="muted">Rien à acheter.</div>'}</div>`;
 }
 function upsertStock(){
   const n=document.getElementById('sn').value.trim(); if(!n)return;
@@ -352,6 +344,7 @@ function deleteStock(k){ if(!confirm('Supprimer '+k+' du stock ?'))return; delet
 
 function renderReport(){
   const el=document.getElementById('v-report');
+  if(!el)return;
   el.innerHTML=`<div class="card"><h3>Clôturer le rapport du jour</h3>
   <div id="repLines">${PRODUCTS.map(p=>`
     <div class="row"><div style="flex:2"><b>${p.name}</b></div>
@@ -362,24 +355,25 @@ function renderReport(){
     </div>`).join('')}</div>
   <button class="act" onclick="closeReport()">Enregistrer le rapport (permanent)</button></div>
   <div class="card"><h3>Historique des rapports</h3>
-  ${state.dailyReports.slice().reverse().map((r,ri)=>`<div class="muted" style="display:flex;justify-content:space-between;gap:8px;margin-bottom:6px"><span>${new Date(r.date).toLocaleDateString('fr-FR')} — ${r.lines.filter(l=>l.perte||l.refaire).map(l=>l.name+' (pertes:'+l.perte+', refaire:'+l.refaire+')').join('; ')||'RAS'}</span><button class="danger" onclick="deleteReport(${state.dailyReports.length-1-ri})">🗑️</button></div>`).join('')||'<div class="muted">Aucun rapport</div>'}
+  ${state.dailyReports.slice().reverse().map((r,ri)=>`<div class="muted" style="display:flex;justify-content:space-between;gap:8px;margin-bottom:6px"><span>${new Date(r.date).toLocaleDateString('fr-FR')} —${r.lines.filter(l=>l.perte||l.refaire).map(l=>l.name+' (pertes:'+l.perte+', refaire:'+l.refaire+')').join('; ')||'RAS'}</span><button class="danger" onclick="deleteReport(${state.dailyReports.length-1-ri})">🗑️</button></div>`).join('')||'<div class="muted">Aucun rapport</div>'}
   </div>`;
 }
 function closeReport(){
   const lines=PRODUCTS.map(p=>({name:p.name,reel:+document.getElementById('rr_'+p.id).value||0,livre:+document.getElementById('rl_'+p.id).value||0,
     perte:+document.getElementById('rp_'+p.id).value||0,refaire:+document.getElementById('ra_'+p.id).value||0}));
-  state.dailyReports.push({date:new Date().toISOString(),lines,by:currentUser?currentUser.name:'?'});
+  state.dailyReports.push({date:new Date().toISOString(),lines});
   persist(); alert('Rapport enregistré définitivement.');
 }
-function deleteReport(idx){ if(!confirm('Supprimer ce rapport (irréversible normalement) ?'))return; state.dailyReports.splice(idx,1); persist(); }
+function deleteReport(idx){ if(!confirm('Supprimer ce rapport ?'))return; state.dailyReports.splice(idx,1); persist(); }
 
 function renderSettings(){
   const el=document.getElementById('v-settings');
+  if(!el)return;
   el.innerHTML=`<div class="card"><h3>Réglages</h3>
   <label>Quantité de sécurité par défaut (+X pièces)</label><input type="number" id="stSafety" value="${state.settings.safety}">
   <label style="margin-top:10px;display:block">Capacité mélangeur (kg)</label><input type="number" id="stCap" value="${state.settings.capacity/1000}">
   <button class="act" style="margin-top:10px" onclick="saveSettings()">Enregistrer</button></div>
-  <div class="card muted">Stock, commandes et rapports sont centraux et partagés entre tous les utilisateurs connectés.<br>À venir : planning hebdomadaire, rôles/permissions avancés, export CSV/PDF.</div>`;
+  <div class="card muted">Développé par <b>Ismail Zarouali</b>.</div>`;
 }
 function saveSettings(){
   state.settings.safety=+document.getElementById('stSafety').value||5;
@@ -387,27 +381,8 @@ function saveSettings(){
   persist();
 }
 
-// ---------- AI Assistant ----------
-async function initAi(){ try{ sampleFn=await claude.use("sample"); }catch(e){ sampleFn=null; } }
-function toggleAi(){ document.getElementById('aiPanel').classList.toggle('on'); }
-function pushMsg(who,text){ const d=document.createElement('div'); d.className='msg '+who; d.innerHTML=(who==='bot'?'<b>Assistant:</b> ':'')+text; document.getElementById('aiMsgs').appendChild(d); document.getElementById('aiMsgs').scrollTop=1e9; }
-async function askAi(){
-  const inp=document.getElementById('aiInput'); const q=inp.value.trim(); if(!q)return;
-  pushMsg('me',q); inp.value='';
-  if(!sampleFn){ pushMsg('bot',"L'assistant IA n'est pas disponible dans cette session."); return; }
-  const context={settings:state.settings,stockLow:Object.entries(state.stock).filter(([k,v])=>v.qty<=v.min),
-    ordersToday:state.orders.filter(o=>new Date(o.date).toDateString()===new Date().toDateString()),
-    doughs:Object.keys(DOUGHS),lastProduction:lastCalc};
-  pushMsg('bot','...');
-  try{
-    const res=await sampleFn([{role:'user',content:`Tu es l'assistant d'une boulangerie (bagels/brioche/cinnamon rolls). Réponds en français (ou darija si la question est en darija), de façon brève et concrète, en te basant UNIQUEMENT sur ces données réelles de l'application (n'invente jamais de chiffres non présents) : ${JSON.stringify(context)}. Question: ${q}`}]);
-    document.getElementById('aiMsgs').lastChild.remove();
-    pushMsg('bot',(res.text||'Pas de réponse.').replace(/\n/g,'<br>'));
-  }catch(e){ document.getElementById('aiMsgs').lastChild.remove(); pushMsg('bot',"Erreur ou permission refusée."); }
-}
-
-initDb().then(()=>render(current));
-initAi();
+// تحميل البيانات وتشغيل الواجهة
+loadDb();
 render(current);
 </script>
 </body>
