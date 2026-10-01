@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<!-- إضافة مكتبة Supabase هنا في الـ Head -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
@@ -141,7 +140,7 @@ const DOUGHS={
  standard:{name:'Pâte Bagel Standard',baseWeight:1645,ing:{Farine:1000,Eau:500,Sel:18,Levure:20,Sucre:75,Huile:30,Améliorant:2}},
  brioche:{name:'Pâte Brioche',baseWeight:1777,ing:{Farine:1000,Eau:400,'Œufs':50,Levure:34,Améliorant:2,Sucre:70,Sel:20,Margarine:150,'Crème':50,Colorant:1}},
  cinnamon:{name:'Pâte Cinnamon Roll',baseWeight:2037,ing:{Farine:1000,Eau:200,'Œufs':200,Sel:20,Sucre:130,'Poudre de lait':40,Levure:45,Beurre:200,Margarine:200,Améliorant:2},
-  filling:{baseWeight:876,ing:{Beurre:413,Sucre:413,Cannelle:50}}}
+   filling:{baseWeight:876,ing:{Beurre:413,Sucre:413,Cannelle:50}}}
 };
 let state={orders:[],dailyReports:[],stock:{},settings:{safety:5,capacity:25000},waste:[]};
 let db=null, sampleFn=null, currentUser=null;
@@ -160,13 +159,9 @@ function doLogout(){ if(confirm('Se déconnecter ?')){ localStorage.removeItem('
 
 async function initDb(){
   try{ 
-    // محاولة الربط بـ Supabase مباشرة إذا كان متوفراً، أو الاعتماد على النظام الافتراضي
     if(sb) {
-      // جلب البيانات من جدول أو عبر آلية قاعدة البيانات المخصصة
-      let { data, error } = await sb.from('app_state').select('*').eq('id', 1).single();
-      if(data && data.content) {
-        state = Object.assign(state, data.content);
-      }
+      let { data } = await sb.from('app_state').select('*').eq('id', 1).single();
+      if(data && data.content) Object.assign(state, data.content);
     } else {
       db=await claude.use("db"); if(!db) return;
       const doc=db.doc("app/state");
@@ -182,7 +177,7 @@ async function persist(){
       await sb.from('app_state').upsert({ id: 1, content: state });
     } else if(db) {
       await db.doc("app/state").set(state);
-    } 
+    }
   }catch(e){ console.error('persist',e);} 
   render(current); 
 }
@@ -292,7 +287,7 @@ function renderOrders(){
   <div class="scroll"><table><tr><th>Date</th><th>Client</th><th>Produits</th><th>Statut</th><th></th></tr>
   ${state.orders.slice().reverse().map(o=>`<tr><td>${new Date(o.date).toLocaleDateString('fr-FR')}</td><td>${o.client\vert{}\vert{}'-'}</td><td>${o.items.map(i=>PRODUCTS.find(p=>p.id===i.productId)?.name+' x'+i.qty).join(', ')}</td>
   <td><select onchange="setStatus('${o.id}',this.value)">${['New','Confirmed','In production','Ready','Delivered','Cancelled'].map(s=>`<option ${o.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
-  <td><div class="actions"><button class="ghost" onclick="calcFor('${o.id}')">Calculer</button><button class="ghost" onclick="editOrder('${o.id}')">✏️️</button><button class="danger" onclick="deleteOrder('${o.id}')">🗑️</button></div></td></tr>`).join('')||'<tr><td colspan=5 class="muted">Aucune commande</td></tr>'}
+  <td><div class="actions"><button class="ghost" onclick="calcFor('${o.id}')">Calculer</button><button class="ghost" onclick="editOrder('${o.id}')">✏️</button><button class="danger" onclick="deleteOrder('${o.id}')">🗑️</button></div></td></tr>`).join('')||'<tr><td colspan=5 class="muted">Aucune commande</td></tr>'}
   </table></div></div>`;
   renderLines();
   if(editingOrderId){
