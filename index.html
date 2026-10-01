@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- إضافة مكتبة Supabase هنا في الـ Head -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --bg:#f7f1e8; --card:#ffffff; --ink:#2a1d13; --sub:#8a7563; --line:#ecdfce;
@@ -112,6 +114,18 @@ footer.dev b{color:var(--ink)}
 </div>
 </div>
 <script>
+// إعدادات اتصال Supabase المضافة يدوياً
+const SUPABASE_URL = "https://vqrcyxkmpnfmhga.supabase.co";
+const SUPABASE_KEY = "sb_publishable_KFomcLZKBDK1q5MUc_jggg_EinUJEug";
+let sb = null;
+try {
+  if(window.supabase) {
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  }
+} catch(e) {
+  console.error("Supabase init error:", e);
+}
+
 const PRODUCTS=[
  {id:'nature',name:'Bagel Nature',weight:120,dough:'standard'},
  {id:'cumin',name:'Bagel Cumin',weight:120,dough:'standard'},
@@ -127,7 +141,7 @@ const DOUGHS={
  standard:{name:'Pâte Bagel Standard',baseWeight:1645,ing:{Farine:1000,Eau:500,Sel:18,Levure:20,Sucre:75,Huile:30,Améliorant:2}},
  brioche:{name:'Pâte Brioche',baseWeight:1777,ing:{Farine:1000,Eau:400,'Œufs':50,Levure:34,Améliorant:2,Sucre:70,Sel:20,Margarine:150,'Crème':50,Colorant:1}},
  cinnamon:{name:'Pâte Cinnamon Roll',baseWeight:2037,ing:{Farine:1000,Eau:200,'Œufs':200,Sel:20,Sucre:130,'Poudre de lait':40,Levure:45,Beurre:200,Margarine:200,Améliorant:2},
-   filling:{baseWeight:876,ing:{Beurre:413,Sucre:413,Cannelle:50}}}
+  filling:{baseWeight:876,ing:{Beurre:413,Sucre:413,Cannelle:50}}}
 };
 let state={orders:[],dailyReports:[],stock:{},settings:{safety:5,capacity:25000},waste:[]};
 let db=null, sampleFn=null, currentUser=null;
@@ -145,14 +159,33 @@ function doLogout(){ if(confirm('Se déconnecter ?')){ localStorage.removeItem('
 (function(){ try{ const u=JSON.parse(localStorage.getItem('pm_user')||'null'); if(u){ currentUser=u; document.getElementById('login').style.display='none'; document.getElementById('app').style.display='block'; document.getElementById('whoLabel').textContent='👤 '+u.name+' · Déconnexion'; } }catch(e){} })();
 
 async function initDb(){
-  try{ db=await claude.use("db"); if(!db) return;
-    const doc=db.doc("app/state");
-    const snap=await doc.get();
-    if(snap && snap.data) Object.assign(state,snap.data);
-    doc.onSnapshot(s=>{ if(s&&s.data){ state=Object.assign({orders:[],dailyReports:[],stock:{},settings:{safety:5,capacity:25000},waste:[]},s.data); renderAll(); }});
+  try{ 
+    // محاولة الربط بـ Supabase مباشرة إذا كان متوفراً، أو الاعتماد على النظام الافتراضي
+    if(sb) {
+      // جلب البيانات من جدول أو عبر آلية قاعدة البيانات المخصصة
+      let { data, error } = await sb.from('app_state').select('*').eq('id', 1).single();
+      if(data && data.content) {
+        state = Object.assign(state, data.content);
+      }
+    } else {
+      db=await claude.use("db"); if(!db) return;
+      const doc=db.doc("app/state");
+      const snap=await doc.get();
+      if(snap && snap.data) Object.assign(state,snap.data);
+      doc.onSnapshot(s=>{ if(s&&s.data){ state=Object.assign({orders:[],dailyReports:[],stock:{},settings:{safety:5,capacity:25000},waste:[]},s.data); renderAll(); }});
+    }
   }catch(e){ console.error('db init',e); }
 }
-async function persist(){ try{ if(db) await db.doc("app/state").set(state); }catch(e){ console.error('persist',e);} render(current); }
+async function persist(){ 
+  try{ 
+    if(sb) {
+      await sb.from('app_state').upsert({ id: 1, content: state });
+    } else if(db) {
+      await db.doc("app/state").set(state);
+    } 
+  }catch(e){ console.error('persist',e);} 
+  render(current); 
+}
 
 function fmtKg(g){return (g/1000).toFixed(2)+' kg';}
 function prodQty(o){return o.qty+state.settings.safety;}
@@ -231,7 +264,7 @@ function renderDash(){
   </div>
   <div class="card"><h3>Commandes du jour</h3>
     <div class="scroll"><table><tr><th>Client</th><th>Produits</th><th>Type</th><th>Statut</th></tr>
-    ${todays.map(o=>`<tr><td>${o.client||'-'}</td><td>${o.items.map(i=>PRODUCTS.find(p=>p.id===i.productId)?.name+' x'+i.qty).join(', ')}</td><td>${o.type}</td><td>${o.status}</td></tr>`).join('')||'<tr><td colspan=4 class="muted">Aucune commande</td></tr>'}
+    ${todays.map(o=>`<tr><td>${o.client\vert{}\vert{}'-'}</td><td>${o.items.map(i=>PRODUCTS.find(p=>p.id===i.productId)?.name+' x'+i.qty).join(', ')}</td><td>${o.type}</td><td>${o.status}</td></tr>`).join('')||'<tr><td colspan=4 class="muted">Aucune commande</td></tr>'}
     </table></div>
   </div>`;
 }
@@ -257,9 +290,9 @@ function renderOrders(){
   </div>
   <div class="card"><h3>Toutes les commandes</h3>
   <div class="scroll"><table><tr><th>Date</th><th>Client</th><th>Produits</th><th>Statut</th><th></th></tr>
-  ${state.orders.slice().reverse().map(o=>`<tr><td>${new Date(o.date).toLocaleDateString('fr-FR')}</td><td>${o.client||'-'}</td><td>${o.items.map(i=>PRODUCTS.find(p=>p.id===i.productId)?.name+' x'+i.qty).join(', ')}</td>
+  ${state.orders.slice().reverse().map(o=>`<tr><td>${new Date(o.date).toLocaleDateString('fr-FR')}</td><td>${o.client\vert{}\vert{}'-'}</td><td>${o.items.map(i=>PRODUCTS.find(p=>p.id===i.productId)?.name+' x'+i.qty).join(', ')}</td>
   <td><select onchange="setStatus('${o.id}',this.value)">${['New','Confirmed','In production','Ready','Delivered','Cancelled'].map(s=>`<option ${o.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
-  <td><div class="actions"><button class="ghost" onclick="calcFor('${o.id}')">Calculer</button><button class="ghost" onclick="editOrder('${o.id}')">✏️</button><button class="danger" onclick="deleteOrder('${o.id}')">🗑️</button></div></td></tr>`).join('')||'<tr><td colspan=5 class="muted">Aucune commande</td></tr>'}
+  <td><div class="actions"><button class="ghost" onclick="calcFor('${o.id}')">Calculer</button><button class="ghost" onclick="editOrder('${o.id}')">✏️️</button><button class="danger" onclick="deleteOrder('${o.id}')">🗑️</button></div></td></tr>`).join('')||'<tr><td colspan=5 class="muted">Aucune commande</td></tr>'}
   </table></div></div>`;
   renderLines();
   if(editingOrderId){
@@ -310,7 +343,7 @@ function renderProduction(){
   <p class="muted">Groupé par pâte. Capacité mélangeur: ${fmtKg(state.settings.capacity)}. Cliquez "Calculer" sur une commande pour recalculer.</p></div>
   ${lastCalc.length?lastCalc.map(g=>`
     <div class="card">
-      <h3>${g.doughName} — total ${fmtKg(g.totalWeight)}</h3>
+      <h3>${g.doughName} — total${fmtKg(g.totalWeight)}</h3>
       <div class="scroll"><table><tr><th>Produit</th><th>Qté prod.</th><th>Poids/pce</th><th>Total</th></tr>
       ${g.items.map(i=>`<tr><td>${i.name}</td><td>${i.pq}</td><td>${i.weight}g</td><td>${fmtKg(i.total)}</td></tr>`).join('')}
       </table></div>
@@ -341,7 +374,7 @@ function renderStock(){
     return `<tr><td>${k}</td><td>${v.qty} ${v.unit}</td><td>${v.min}</td><td><span class="badge ${status[1]}">${status[0]}</span></td><td><button class="danger" onclick="deleteStock('${k}')">🗑️</button></td></tr>`;}).join('')||'<tr><td colspan=5 class="muted">Aucun ingrédient</td></tr>'}
   </table></div></div>
   <div class="card"><h3>Liste d'achats (à commander)</h3>
-  ${keys.filter(k=>state.stock[k].qty<state.stock[k].min).map(k=>`<div>${k}: acheter ${(state.stock[k].min-state.stock[k].qty).toFixed(1)} ${state.stock[k].unit}</div>`).join('')||'<div class="muted">Rien à acheter.</div>'}</div>`;
+  ${keys.filter(k=>state.stock[k].qty<state.stock[k].min).map(k=>`<div>${k}: acheter ${(state.stock[k].min-state.stock[k].qty).toFixed(1)}${state.stock[k].unit}</div>`).join('')||'<div class="muted">Rien à acheter.</div>'}</div>`;
 }
 function upsertStock(){
   const n=document.getElementById('sn').value.trim(); if(!n)return;
@@ -362,7 +395,7 @@ function renderReport(){
     </div>`).join('')}</div>
   <button class="act" onclick="closeReport()">Enregistrer le rapport (permanent)</button></div>
   <div class="card"><h3>Historique des rapports</h3>
-  ${state.dailyReports.slice().reverse().map((r,ri)=>`<div class="muted" style="display:flex;justify-content:space-between;gap:8px;margin-bottom:6px"><span>${new Date(r.date).toLocaleDateString('fr-FR')} — ${r.lines.filter(l=>l.perte||l.refaire).map(l=>l.name+' (pertes:'+l.perte+', refaire:'+l.refaire+')').join('; ')||'RAS'}</span><button class="danger" onclick="deleteReport(${state.dailyReports.length-1-ri})">🗑️</button></div>`).join('')||'<div class="muted">Aucun rapport</div>'}
+  ${state.dailyReports.slice().reverse().map((r,ri)=>`<div class="muted" style="display:flex;justify-content:space-between;gap:8px;margin-bottom:6px"><span>${new Date(r.date).toLocaleDateString('fr-FR')} —${r.lines.filter(l=>l.perte||l.refaire).map(l=>l.name+' (pertes:'+l.perte+', refaire:'+l.refaire+')').join('; ')||'RAS'}</span><button class="danger" onclick="deleteReport(${state.dailyReports.length-1-ri})">🗑️</button></div>`).join('')||'<div class="muted">Aucun rapport</div>'}
   </div>`;
 }
 function closeReport(){
