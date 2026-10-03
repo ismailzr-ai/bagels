@@ -98,13 +98,6 @@ footer.dev b{color:var(--ink)}
 </div>
 </div>
 <script>
-try {
-  if(window.supabase) {
-    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  }
-} catch(e) {
-  console.error("Supabase init error:", e);
-}
 
 const PRODUCTS=[
  {id:'nature',name:'Bagel Nature',weight:120,dough:'standard'},
